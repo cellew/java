@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:aop="http://www.springframework.org/schema/aop" xmlns:tx="http://www.springframework.org/schema/tx"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans
+http://www.springframework.org/schema/beans/spring-beans.xsd
+http://www.springframework.org/schema/context
+http://www.springframework.org/schema/context/spring-context.xsd
+http://www.springframework.org/schema/aop
+http://www.springframework.org/schema/aop/spring-aop.xsd
+http://www.springframework.org/schema/tx
+http://www.springframework.org/schema/tx/spring-tx.xsd">
+	<context:property-placeholder location="classpath:redis.properties" />
+	<context:component-scan base-package="com.eduask" />
+	<bean id="dataSource" class="com.mchange.v2.c3p0.ComboPooledDataSource">
+		<property name="user" value="${jdbc.user}"></property>
+		<property name="password" value="${jdbc.password}"></property>
+		<property name="jdbcUrl" value="${jdbc.url}"></property>
+		<property name="driverClass" value="${jdbc.driver}"></property>
+		<!-- 初始化池子大小 -->
+		<property name="initialPoolSize" value="${initPoolSize}"></property>
+		<!-- 池子最大数 -->
+		<property name="maxPoolSize" value="${maxPoolSize}"></property>
+	</bean>
+	<bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+		<!-- 数据源 -->
+		<property name="dataSource" ref="dataSource" />
+		<!-- 配置mapper -->
+		<property name="mapperLocations" value="classpath:com/eduask/mapper/*.xml" />
+	</bean>
+
+	<!-- 配置接口注入 -->
+	<bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+		<property name="basePackage" value="com.eduask.mapper"></property>
+		<property name="sqlSessionFactoryBeanName" value="sqlSessionFactory" />
+	</bean>
+
+	<!-- Redis和缓存配置开始 -->
+	<!-- jedis 配置 -->
+	<bean id="poolConfig" class="redis.clients.jedis.JedisPoolConfig">
+		<property name="maxIdle" value="${redis.maxIdle}" />
+		<property name="maxWaitMillis" value="${redis.maxTotal}" />
+		<property name="testOnBorrow" value="${redis.testOnBorrow}" />
+	</bean>
+
+	<!-- redis连接池 -->
+	<bean id="jedisPool" class="redis.clients.jedis.JedisPool"
+		destroy-method="close">
+		<constructor-arg name="poolConfig" ref="poolConfig" />
+		<constructor-arg name="host" value="${redis.port}" />
+		<constructor-arg name="port" value="${redis.port}" />
+	</bean>
+
+	<!-- redis服务器中心 -->
+	<bean id="connectionFactory"
+		class="org.springframework.data.redis.connection.jedis.JedisConnectionFactory">
+		<property name="poolConfig" ref="poolConfig" />
+		<property name="port" value="${redis.port}" />
+		<property name="hostName" value="${redis.port}" />
+		<!-- <property name="password" value="${redis.password}" /> -->
+		<property name="timeout" value="10000"></property>
+	</bean>
+	<bean id="redisTemplate" class="org.springframework.data.redis.core.RedisTemplate">
+		<property name="connectionFactory" ref="connectionFactory" />
+		<property name="keySerializer">
+			<bean
+				class="org.springframework.data.redis.serializer.StringRedisSerializer" />
+		</property>
+		<property name="valueSerializer">
+			<bean
+				class="org.springframework.data.redis.serializer.StringRedisSerializer" />
+		</property>
+	</bean>
+</beans>
